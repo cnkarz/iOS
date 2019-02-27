@@ -3,7 +3,7 @@
 //
 //  Created by Cenk Arioz on 28.01.2019.
 //  Copyright © 2019 Cenk Arioz. All rights reserved.
-//  Ready-to-use cryptograpy code with AES-CBC
+//  Ready-to-use cryptograpy code with AES
 
 import Foundation
 import CommonCrypto

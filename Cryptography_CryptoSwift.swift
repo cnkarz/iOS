@@ -10,60 +10,59 @@ import CryptoSwift
 
 class EncryptionModel {
 
+    enum Operation {
+        case encrypt
+        case decrypt
+    }
+    
+    private let keySizeAES128 = 16
+    private let aesBlockSize = 16
+    
     func encrypt(data: Data, key: String) -> Data {
-        return crypt(data: data, key: key, operation: kCCEncrypt)
+        return crypt(data: data, key: key, operation: .encrypt)
     }
     
     func decrypt(data: Data, key: String) -> Data {
-        return crypt(data: data, key: key, operation: kCCDecrypt)
+        return crypt(data: data, key: key, operation: .decrypt)
     }
     
-    private func crypt(data: Data, key: String, operation: Int) -> Data {
-
-        guard key.count == kCCKeySizeAES128 else {
+    private func crypt(data: Data, key: String, operation: Operation) -> Data {
+        
+        guard key.count == keySizeAES128 else {
             fatalError("Key size failed!")
         }
-        var ivBytes: [UInt8]
-        var inBytes: [UInt8]
-        var outLength: Int
+        var outData: Data? = nil
         
-        if operation == kCCEncrypt {
-            ivBytes = [UInt8](repeating: 0, count: kCCBlockSizeAES128)
-            guard kCCSuccess == SecRandomCopyBytes(kSecRandomDefault, ivBytes.count, &ivBytes) else {
+        if operation == .encrypt {
+            var ivBytes = [UInt8](repeating: 0, count: aesBlockSize)
+            guard 0 == SecRandomCopyBytes(kSecRandomDefault, ivBytes.count, &ivBytes) else {
                 fatalError("IV creation failed!")
             }
-            inBytes = Array(data)
             
-        } else {
-            ivBytes = Array(Array(data).dropLast(data.count - kCCBlockSizeAES128))
-            inBytes = Array(Array(data).dropFirst(kCCBlockSizeAES128))
-            
-        }
- 
-        var outData: Data? = nil
-        // CRYPTOSWIFT
-        if operation == kCCEncrypt {
             do {
-                let aes = try AES(key: key.bytes, blockMode: CBC(iv: ivBytes))
-                let encrypted = try aes.encrypt(inBytes)
-                let outDataCS = Data(bytes: encrypted)
-                ivBytes.append(contentsOf: Array(outDataCS))
-                
+                let aes = try AES(key: Array(key.data(using: .utf8)!), blockMode: CBC(iv: ivBytes))
+                let encrypted = try aes.encrypt(Array(data))
+                ivBytes.append(contentsOf: encrypted)
                 outData = Data(bytes: ivBytes)
+                
             } catch {
-                print("Cryptoswift error: \(error)")
+                print("Encryption error: \(error)")
             }
+            
         } else {
-            do {
-                let aes = try AES(key: key.bytes, blockMode: CBC(iv: ivBytes))
-                let decrypted = try aes.decrypt(data.bytes)
-                let outData = Data(bytes: decrypted)
+            let ivBytes = Array(Array(data).dropLast(data.count - aesBlockSize))
+            let inBytes = Array(Array(data).dropFirst(aesBlockSize))
 
+            do {
+                let aes = try AES(key: Array(key.data(using: .utf8)!), blockMode: CBC(iv: ivBytes))
+                let decrypted = try aes.decrypt(inBytes)
+                outData = Data(bytes: decrypted)
+                
             } catch {
-                print("Cryptoswift error: \(error)")
+                print("Decryption error: \(error)")
             }
         }
         return outData!
-        
+
     }
 }
